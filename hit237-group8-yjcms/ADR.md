@@ -8,6 +8,24 @@
 > they document. Run `git log ADR.md` to verify incremental history.
 > Assessment 4 ADRs (ADR-007, ADR-008) were committed before the code they describe.
 
+---
+
+## ADR-007: Service layer for domain operations
+
+**Status:** Accepted
+
+**Context:**
+Assessment 4 needs a clearer separation between request handling and business rules. Without a dedicated service layer, domain logic is scattered across views, forms, and models, which makes testing and reuse harder.
+
+**Decision:**
+Introduce a `cases/services/` package to encapsulate use-case logic and domain operations. Views will orchestrate incoming requests and delegate business rules to the service layer, while models continue to represent persistence and data structure.
+
+**Consequences:**
+- Improves testability by isolating business logic from HTTP and template concerns
+- Keeps views thin and focused on orchestration
+- Establishes a clearer boundary for Assessment 4 implementation work
+- Adds architectural structure that supports future service reuse and maintenance
+
 **Assessment 4** introduces two new architectural layers:
 1. A service layer (`cases/services/`) encapsulating all domain operations
 2. A test suite verifying model behaviour, service rules, and permission boundaries
