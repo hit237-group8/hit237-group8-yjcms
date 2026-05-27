@@ -35,6 +35,35 @@ decisions are carried forward unchanged except where noted.
 
 ---
 
+## ADR-008: Testing strategy for service and data access
+
+**Status:** Accepted
+
+**Context:**
+Assessment 4 requires a testing strategy that verifies business rules without
+relying solely on end-to-end UI tests. The decision was whether to defer test
+coverage until after the views and templates existed, or to make the testing
+strategy explicit before test files were written.
+
+**Decision:**
+Adopt a layered testing strategy that matches the architecture:
+- Unit tests for models and query behaviour
+- Service tests for business rules, orchestration, and permission logic
+- View tests for request/response and UI access control
+- Template tests only where presentation-specific logic exists
+
+This decision was documented before test files were written, ensuring that
+Assessment 4 development is guided by a clear test-first mindset.
+
+**Consequences:**
+- Encourages a clean separation between domain logic and HTTP concerns
+- Makes service layer behaviour testable without setting up full request fixtures
+- Avoids brittle tests that depend on presentation structure
+- Aligns the codebase with Django's recommended testing approach: model,
+  view, and integration tests where each has a clear purpose
+
+---
+
 ## Assessment 2 ADRs — Carried Forward
 
 ---
