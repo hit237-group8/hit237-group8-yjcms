@@ -8,6 +8,10 @@
 > they document. Run `git log ADR.md` to verify incremental history.
 > Assessment 4 ADRs (ADR-007, ADR-008) were committed before the code they describe.
 
+## Design Evolution Narrative
+
+This ADR collection began as a set of Assessment 2 decisions that defined the core Django architecture for the case management system. For Assessment 4, the design evolved in two key ways: a dedicated service layer was introduced to isolate domain logic from request handling, and query optimisation decisions were extended to include conditional annotation and distinct aggregation. These additions preserve the original MTV structure while explicitly addressing performance and testability for the extended assessment scope.
+
 ---
 
 ## ADR-007: Service layer for domain operations
@@ -32,6 +36,35 @@ Introduce a `cases/services/` package to encapsulate use-case logic and domain o
 
 The ADR now shows eight decisions. ADR-004 has been extended. All Assessment 2
 decisions are carried forward unchanged except where noted.
+
+---
+
+## ADR-008: Testing strategy for service and data access
+
+**Status:** Accepted
+
+**Context:**
+Assessment 4 requires a testing strategy that verifies business rules without
+relying solely on end-to-end UI tests. The decision was whether to defer test
+coverage until after the views and templates existed, or to make the testing
+strategy explicit before test files were written.
+
+**Decision:**
+Adopt a layered testing strategy that matches the architecture:
+- Unit tests for models and query behaviour
+- Service tests for business rules, orchestration, and permission logic
+- View tests for request/response and UI access control
+- Template tests only where presentation-specific logic exists
+
+This decision was documented before test files were written, ensuring that
+Assessment 4 development is guided by a clear test-first mindset.
+
+**Consequences:**
+- Encourages a clean separation between domain logic and HTTP concerns
+- Makes service layer behaviour testable without setting up full request fixtures
+- Avoids brittle tests that depend on presentation structure
+- Aligns the codebase with Django's recommended testing approach: model,
+  view, and integration tests where each has a clear purpose
 
 ---
 
@@ -182,6 +215,16 @@ When two `Count()` annotates each require a JOIN, the JOINs multiply rows.
 Caseworker with 3 clients × 5 cases = 15 rows — count would be 15 without distinct.
 `distinct=True` counts unique values independently per annotation.
 
+**Assessment 4 QuerySet justification:**
+- `select_related()` is chosen only for ForeignKey / OneToOne traversals because it
+  performs a SQL JOIN and is efficient for single-row relationships.
+- `prefetch_related()` is chosen for ManyToMany and reverse ForeignKey traversal
+  because it avoids duplicate rows and loads related objects in a second query.
+- Conditional `annotate(..., filter=Q(...))` limits aggregates to relevant rows,
+  making counts correct and performant.
+- `distinct=True` prevents inflated annotation counts when multiple JOIN paths
+  would otherwise multiply the result set.
+
 **`Q` objects** — OR-based search in one query.
 Chained `.filter()` produces AND — a name search would only match when
 both fields contain the term. `Q(first__icontains=q) | Q(last__icontains=q)`
@@ -274,160 +317,6 @@ Implements *don't reinvent the wheel* directly.
 
 ---
 
-## Assessment 4 ADRs — New
-
----
-
-## ADR-007: Service Layer Architecture
-
-**Status:** Accepted
-
-**Context:**
-As the application grows with more complex business rules (capacity limits,
-case closure restrictions, duplicate prevention), placing logic in views
-creates three problems:
-
-1. Views violate Single Responsibility Principle — responsible for both
-   HTTP handling and domain rule enforcement simultaneously
-2. The same rule cannot be reused without copying code across views
-3. Domain rules cannot be tested without spinning up an HTTP request context
-
-In Assessment 2, all cross-model logic sat in views or model methods. There
-was no dedicated encapsulation layer. Assessment 4 requires one.
-
-**Alternatives Considered:**
-
-| Option | Pros | Cons |
-|--------|------|------|
-| Logic in views | No extra layer; fewer files | Views become fat and untestable without HTTP; rules duplicated when multiple views need them; violates SRP |
-| Logic in fat models | Close to data; no extra layer | Cross-model operations (e.g. checking Program capacity when creating Enrolment) require circular imports between models; models become too large |
-| Service layer (chosen) | Single responsibility per layer; domain rules testable without HTTP; views become thin; reusable by views, admin, management commands | One extra module layer; developers must learn layer boundaries |
-
-**Decision:**
-Introduce `cases/services/case_service.py` containing `CaseService` and
-`YoungPersonService`. Services:
-- Accept domain objects (not HTTP request data)
-- Raise named domain exceptions (`CaseAlreadyClosedError`, `ProgramFullError`,
-  `DuplicateEnrolmentError`) for every invariant violation
-- Use `@transaction.atomic` on operations that write multiple records
-
-View pattern after this decision:
-```
-1. View validates form input
-2. View calls service method with domain objects
-3. Service enforces domain rules, raises named exception on violation
-4. View catches exception, adds message, redirects or re-renders
-5. View never contains if/else domain logic
-```
-
-The `@transaction.atomic` on `enrol_in_program()` is a deliberate non-trivial
-choice. Without it, if the database write fails after all three domain checks
-pass, no capacity is consumed but the state is inconsistent. With it, the entire
-operation rolls back atomically. It also prevents a race condition where two
-simultaneous requests both pass the `is_full()` check before either creates
-the `Enrolment` row — without atomicity, both would succeed and exceed capacity.
-
-Domain exceptions are placed in `models.py` (not `services.py`) to avoid
-circular imports. Both services and tests import from models — safe in both
-directions.
-
-**Code Reference:**
-- `cases/services/case_service.py` — `CaseService` (all static methods)
-- `cases/services/case_service.py` — `YoungPersonService`
-- `cases/models.py` — top of file: `CaseAlreadyClosedError`, `ProgramFullError`,
-  `DuplicateEnrolmentError`, `CaseworkerNotFoundError`
-- `cases/views.py` — views calling service and catching exceptions
-
-**Consequences:**
-- Views are thin: validate → call service → catch exception → redirect or render
-- Domain rules defined once; reusable by any caller
-- New business rules require only a service method + test; views rarely change
-- `@transaction.atomic` prevents race conditions and partial writes on enrolment
-
----
-
-## ADR-008: Testing Strategy
-
-**Status:** Accepted
-
-**Context:**
-Assessment 4 requires a meaningful test suite. The critical design question
-is what constitutes meaningful versus trivial. The assessment brief explicitly
-warns: "AI-generated test suites that merely assert trivial conditions will not
-earn credit." We needed a principled approach to what to test and why.
-
-**Alternatives Considered:**
-
-| Option | Pros | Cons |
-|--------|------|------|
-| No tests | Fastest | Not permitted; no confidence in correctness |
-| 100% code coverage | Exhaustive | Incentivises trivial tests (testing `__str__`, testing Django saving); diminishing returns |
-| Behaviour-focused tests at three layers (chosen) | Tests what our code does; skips Django internals; fast; readable as documentation | Requires discipline to avoid testing obvious things |
-
-**Decision:**
-Three test files targeting distinct layers of behaviour:
-
-**`test_models.py`** — model business logic we wrote:
-- `age()` birthday boundary formula
-- `is_minor` at age 18 boundary
-- `full_address` blank field handling
-- `active_case_count()` filtering by 'open' only
-- `available_spots()` filtering by 'enrolled' only (not completed/withdrawn)
-- `Case.is_open()` for all status values
-- `Case.clean()` validation rule
-- `unique_together` constraints
-
-**`test_services.py`** — service layer domain rules:
-- Happy path for each service method
-- Every named exception raised under the correct condition
-- Non-obvious rules: completed/withdrawn enrolments do not block capacity
-- `@transaction.atomic`: duplicate does not leave inconsistent state
-
-**`test_views.py`** — permission boundaries and HTTP behaviour:
-- Every URL redirects unauthenticated users to login
-- Unauthenticated POST does not create records (security boundary)
-- Authenticated users receive HTTP 200
-- Create view saves and redirects (full cycle)
-- Search returns correct subset (verifies Q-object OR logic)
-- 404 for non-existent pk
-
-**What is NOT tested (and why):**
-- `__str__` returning a string — Django guarantee, not our logic
-- Django saving a field to the database — Django's ORM
-- Admin page rendering — integration concern, brittle
-- Django's form validation — not our validators
-- Database connection reliability — infrastructure
-
-**Running the suite:**
-```
-python manage.py test cases.tests               # all
-python manage.py test cases.tests.test_models   # models only
-python manage.py test cases.tests.test_services # services only
-python manage.py test cases.tests.test_views    # views only
-```
-
-**Code Reference:**
-- `cases/tests/test_models.py`
-- `cases/tests/test_services.py`
-- `cases/tests/test_views.py`
-
-**Consequences:**
-- Test suite runs fast — no browser, minimal HTTP overhead
-- Each test documents a domain rule — readable as specification
-- Failures point directly to broken business logic, not Django internals
-- New service methods require a corresponding test (team contract)
-
----
-
 ## ADR Status Summary
 
 | ADR | Title | Assessment | Status |
-|-----|-------|-----------|--------|
-| ADR-001 | Through models for M2M relationships | A2 | ✅ Accepted |
-| ADR-002 | Class-Based Views for CRUD | A2 | ✅ Accepted |
-| ADR-003 | OneToOneField profile for Caseworker | A2 | ✅ Accepted |
-| ADR-004 | QuerySet optimisation strategy | A2, extended A4 | ✅ Accepted |
-| ADR-005 | MTV pattern and two-app structure | A2 | ✅ Accepted |
-| ADR-006 | Django built-in authentication | A2 | ✅ Accepted |
-| ADR-007 | Service layer architecture | A4 | ✅ Accepted |
-| ADR-008 | Testing strategy | A4 | ✅ Accepted |
