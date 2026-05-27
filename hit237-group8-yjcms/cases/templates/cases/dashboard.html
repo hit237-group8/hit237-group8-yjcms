@@ -1,0 +1,206 @@
+{% extends "cases/base.html" %}
+{% block title %}Dashboard – Youth Justice CMS{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="h3 mb-0">Dashboard</h1>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'youngperson-create' %}" class="btn btn-primary me-2">
+            <i class="bi bi-person-plus me-1"></i>New Client
+        </a>
+        <a href="{% url 'case-create' %}" class="btn btn-outline-primary">
+            <i class="bi bi-folder-plus me-1"></i>New Case
+        </a>
+    </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-4 col-lg-2-4">
+        <div class="card metric-card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="metric-icon mb-3"><i class="bi bi-folder2-open"></i></div>
+                <div class="metric-number">{{ total_cases }}</div>
+                <div class="text-muted small fw-semibold">Total Cases</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2-4">
+        <div class="card metric-card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="metric-icon mb-3" style="background:#16a34a"><i class="bi bi-unlock"></i></div>
+                <div class="metric-number">{{ open_cases }}</div>
+                <div class="text-muted small fw-semibold">Open Cases</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2-4">
+        <div class="card metric-card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="metric-icon mb-3" style="background:#b45309"><i class="bi bi-calendar-event"></i></div>
+                <div class="metric-number">{{ pending_cases }}</div>
+                <div class="text-muted small fw-semibold">Pending Court</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2-4">
+        <div class="card metric-card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="metric-icon mb-3" style="background:#2563eb"><i class="bi bi-people"></i></div>
+                <div class="metric-number">{{ total_clients }}</div>
+                <div class="text-muted small fw-semibold">Clients</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-lg-2-4">
+        <div class="card metric-card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="metric-icon mb-3" style="background:#7c3aed"><i class="bi bi-journal-check"></i></div>
+                <div class="metric-number">{{ total_programs }}</div>
+                <div class="text-muted small fw-semibold">Active Programs</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Recent Cases -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-folder2-open me-2 text-primary"></i>Recent Cases</span>
+                <a href="{% url 'case-list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Case #</th>
+                            <th>Client</th>
+                            <th>Status</th>
+                            <th>Risk</th>
+                            <th>Opened</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for case in recent_cases %}
+                        <tr>
+                            <td><a href="{% url 'case-detail' case.pk %}" class="text-decoration-none fw-semibold">{{ case.case_number }}</a></td>
+                            <td><a href="{% url 'youngperson-detail' case.young_person.pk %}" class="text-decoration-none">{{ case.young_person.full_name }}</a></td>
+                            <td>
+                                {% if case.status == 'open' %}
+                                    <span class="badge bg-success">Open</span>
+                                {% elif case.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif case.status == 'closed' %}
+                                    <span class="badge bg-secondary">Closed</span>
+                                {% else %}
+                                    <span class="badge bg-info">{{ case.get_status_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="risk-{{ case.risk_level }}">{{ case.get_risk_level_display }}</span>
+                            </td>
+                            <td class="text-muted small">{{ case.opened_date }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5">
+                                <div class="empty-state">
+                                    <i class="bi bi-folder-plus"></i>
+                                    <div class="fw-bold">No cases yet</div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="col-lg-5">
+        <!-- Workload -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-clipboard-data me-2 text-primary"></i>Caseworker Workload
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for worker in caseworker_workload %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="avatar">{{ worker.user.first_name|first }}{{ worker.user.last_name|first }}</span>
+                        <div>
+                            <div class="fw-semibold">{{ worker.user.get_full_name }}</div>
+                            <small class="text-muted">{{ worker.client_count }} clients</small>
+                        </div>
+                    </div>
+                    <span class="badge bg-primary">{{ worker.open_case_count }} open</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item">
+                    <div class="empty-state py-3">
+                        <i class="bi bi-person-badge"></i>
+                        <div class="fw-bold">No workload data</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Upcoming Hearings -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-calendar-event me-2 text-warning"></i>Upcoming Hearings
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for hearing in upcoming_hearings %}
+                <li class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">{{ hearing.case.young_person.full_name }}</div>
+                        <small class="text-muted">{{ hearing.court_name }}</small>
+                    </div>
+                    <span class="text-muted small">{{ hearing.hearing_date|date:"d M Y" }}</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item">
+                    <div class="empty-state py-3">
+                        <i class="bi bi-calendar-check"></i>
+                        <div class="fw-bold">No upcoming hearings</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- High Risk Cases -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-exclamation-triangle me-2 text-danger"></i>High Risk Cases
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for case in high_risk_cases %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <a href="{% url 'case-detail' case.pk %}" class="text-decoration-none fw-semibold">{{ case.case_number }}</a>
+                        <div class="text-muted small">{{ case.young_person.full_name }}</div>
+                    </div>
+                    <span class="badge bg-danger">High</span>
+                </li>
+                {% empty %}
+                <li class="list-group-item">
+                    <div class="empty-state py-3">
+                        <i class="bi bi-check2-shield"></i>
+                        <div class="fw-bold">No high risk cases</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
