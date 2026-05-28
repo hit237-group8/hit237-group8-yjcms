@@ -1,0 +1,54 @@
+{% extends "cases/base.html" %}
+{% block title %}Caseworkers – Youth Justice CMS{% endblock %}
+{% block nav_caseworkers %}active{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="h3 mb-0">Caseworkers</h1>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Staff ID</th>
+                    <th>Department</th>
+                    <th>Phone</th>
+                    <th>Clients</th>
+                    <th>Cases</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cw in caseworkers %}
+                <tr>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="avatar">{{ cw.user.first_name|first }}{{ cw.user.last_name|first }}</span>
+                            <span class="fw-semibold">{{ cw.user.get_full_name }}</span>
+                        </div>
+                    </td>
+                    <td><code>{{ cw.staff_id }}</code></td>
+                    <td>{{ cw.department|default:"—" }}</td>
+                    <td>{{ cw.phone|default:"—" }}</td>
+                    <td><span class="badge bg-info text-dark">{{ cw.client_count }}</span></td>
+                    <td><span class="badge bg-secondary">{{ cw.case_count }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6">
+                        <div class="empty-state">
+                            <i class="bi bi-person-badge"></i>
+                            <div class="fw-bold">No caseworkers found</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
