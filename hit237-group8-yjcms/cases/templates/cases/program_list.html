@@ -1,0 +1,57 @@
+{% extends "cases/base.html" %}
+{% block title %}Programs – Youth Justice CMS{% endblock %}
+{% block nav_programs %}active{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="h3 mb-0">Programs</h1>
+    </div>
+</div>
+
+<div class="row g-3">
+    {% for program in programs %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                <h5 class="card-title mb-0">
+                    <a href="{% url 'program-detail' program.pk %}" class="text-decoration-none">{{ program.name }}</a>
+                </h5>
+                <span class="badge bg-secondary">{{ program.get_program_type_display }}</span>
+                </div>
+                <p class="card-text text-muted small">{{ program.description|truncatewords:20 }}</p>
+                <div class="capacity-track mb-3" aria-label="Program capacity">
+                    <div class="capacity-fill" style="width: {% widthratio program.enrolled_count program.capacity 100 %}%"></div>
+                </div>
+                <dl class="row mb-0 small">
+                    <dt class="col-6 text-muted">Duration</dt>
+                    <dd class="col-6">{{ program.duration_weeks }} weeks</dd>
+                    <dt class="col-6 text-muted">Capacity</dt>
+                    <dd class="col-6">{{ program.enrolled_count }} / {{ program.capacity }}</dd>
+                    <dt class="col-6 text-muted">Facilitator</dt>
+                    <dd class="col-6">{{ program.facilitator }}</dd>
+                </dl>
+            </div>
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center">
+                {% if program.is_full %}
+                    <span class="badge bg-danger">Full</span>
+                {% else %}
+                    <span class="badge bg-success">{{ program.available_spots }} spots left</span>
+                {% endif %}
+                <a href="{% url 'program-detail' program.pk %}" class="btn btn-sm btn-outline-primary table-action" title="View program"><i class="bi bi-arrow-right"></i></a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="empty-state">
+                <i class="bi bi-journal-x"></i>
+                <div class="fw-bold">No active programs found</div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

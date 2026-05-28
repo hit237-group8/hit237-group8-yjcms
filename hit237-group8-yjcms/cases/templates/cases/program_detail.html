@@ -1,0 +1,77 @@
+{% extends "cases/base.html" %}
+{% block title %}{{ program.name }} – Youth Justice CMS{% endblock %}
+{% block nav_programs %}active{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a href="{% url 'program-list' %}">Programs</a></li>
+                <li class="breadcrumb-item active">{{ program.name }}</li>
+            </ol>
+        </nav>
+        <h1 class="h3 mb-1">{{ program.name }}</h1>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-info-circle me-2 text-primary"></i>Details</div>
+            <div class="card-body">
+                <dl class="row mb-0 detail-list">
+                    <dt class="col-5 text-muted">Type</dt>
+                    <dd class="col-7">{{ program.get_program_type_display }}</dd>
+                    <dt class="col-5 text-muted">Duration</dt>
+                    <dd class="col-7">{{ program.duration_weeks }} weeks</dd>
+                    <dt class="col-5 text-muted">Capacity</dt>
+                    <dd class="col-7">{{ program.capacity }}</dd>
+                    <dt class="col-5 text-muted">Enrolled</dt>
+                    <dd class="col-7">{{ enrolments|length }}</dd>
+                    <dt class="col-5 text-muted">Completed</dt>
+                    <dd class="col-7">{{ completed_count }}</dd>
+                    <dt class="col-5 text-muted">Spots Left</dt>
+                    <dd class="col-7">
+                        {% if program.is_full %}
+                            <span class="badge bg-danger">Full</span>
+                        {% else %}
+                            <span class="badge bg-success">{{ program.available_spots }}</span>
+                        {% endif %}
+                    </dd>
+                    <dt class="col-5 text-muted">Facilitator</dt>
+                    <dd class="col-7">{{ program.facilitator }}</dd>
+                </dl>
+                {% if program.description %}
+                <hr>
+                <p class="text-muted small mb-0">{{ program.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-people me-2 text-success"></i>Current Enrolments</div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr><th>Client</th><th>Case #</th><th>Enrolled</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for enrolment in enrolments %}
+                        <tr>
+                            <td><a href="{% url 'youngperson-detail' enrolment.case.young_person.pk %}" class="text-decoration-none">{{ enrolment.case.young_person.full_name }}</a></td>
+                            <td><a href="{% url 'case-detail' enrolment.case.pk %}" class="text-decoration-none">{{ enrolment.case.case_number }}</a></td>
+                            <td class="text-muted small">{{ enrolment.enrolment_date }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3"><div class="empty-state py-3"><i class="bi bi-people"></i><div class="fw-bold">No current enrolments</div></div></td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
