@@ -4,6 +4,11 @@ from .models import Case, YoungPerson
 
 
 class YoungPersonForm(forms.ModelForm):
+    education_status = forms.ChoiceField(
+        choices=YoungPerson.EDUCATION_CHOICES,
+        required=False,
+    )
+
     class Meta:
         model = YoungPerson
         fields = [
@@ -28,6 +33,9 @@ class YoungPersonForm(forms.ModelForm):
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def clean_education_status(self):
+        return self.cleaned_data['education_status'] or 'unknown'
 
 
 class CaseForm(forms.ModelForm):
